@@ -8,7 +8,7 @@ Rules:
 2. Do NOT output explanations.
 3. Do NOT output markdown.
 4. Do NOT use triple backticks.
-5. Main design module name must be "design".
+5. Main design module name must be "chip_design".
 6. Testbench module name must be "tb".
 7. Always generate a complete synthesizable design module.
 8. Always generate a complete testbench after the design module.

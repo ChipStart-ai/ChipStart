@@ -16,11 +16,16 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 MODEL = genai.GenerativeModel("gemini-3.5-flash")
 
+with open("../prompts/verilog_system_prompt.txt", "r") as f:
+    SYSTEM_PROMPT = f.read()
+
+
 @app.route("/")
 def home():
     return {
         "message": "ChipStart Backend Running"
     }
+
 
 @app.route("/generate", methods=["POST"])
 def generate_verilog():
@@ -30,11 +35,14 @@ def generate_verilog():
 
     try:
         print("Calling Gemini...")
+
         response = MODEL.generate_content(
-            f"Generate Verilog HDL code for: {user_input}. Return only Verilog code."
+            f"{SYSTEM_PROMPT}\n\nUser Request:\n{user_input}"
         )
 
         verilog_code = response.text
+        verilog_code = verilog_code.replace("```verilog", "").replace("```", "").strip()
+
         print("Gemini responded!")
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -62,12 +70,21 @@ def generate_verilog():
             subprocess.run(
                 ["vvp", sim_path],
                 capture_output=True,
-                text=True
+                text=True,
+                cwd=tmpdir
             )
+
+            vcd_path = os.path.join(tmpdir, "output.vcd")
+
+            waveform_data = ""
+
+            if os.path.exists(vcd_path):
+                with open(vcd_path, "r") as f:
+                    waveform_data = f.read()
 
             return jsonify({
                 "verilog": verilog_code,
-                "waveform": "Simulation completed",
+                "waveform": waveform_data,
                 "error": None
             })
 
@@ -77,6 +94,7 @@ def generate_verilog():
             "waveform": None,
             "error": str(e)
         })
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
