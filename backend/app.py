@@ -81,6 +81,7 @@ def generate_verilog():
             if os.path.exists(vcd_path):
                 with open(vcd_path, "r") as f:
                     waveform_data = f.read()
+            print("VCD size:", len(waveform_data))
 
             return jsonify({
                 "verilog": verilog_code,
@@ -92,8 +93,13 @@ def generate_verilog():
         return jsonify({
             "verilog": None,
             "waveform": None,
-            "error": str(e)
-        })
+            "error": (
+            "Gemini free-tier quota reached. "
+            "Please wait a minute and try again."
+            if "429" in str(e)
+            else str(e)
+        )
+    })
 
 
 if __name__ == "__main__":

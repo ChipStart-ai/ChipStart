@@ -12,42 +12,57 @@ export default function Home() {
   const [error, setError] = useState("")
 
   function parseVCD(vcd: string) {
-    const rows: any[] = []
+  const rows: any[] = []
 
-    const lines = vcd.split("\n")
+  const lines = vcd.split("\n")
 
-    let time = 0
+  let time = 0
 
-    let signals = {
-      a: 0,
-      b: 0,
-      y: 0,
-    }
+  const signals: any = {}
 
-    for (const line of lines) {
-      if (line.startsWith("#")) {
-        time = parseInt(line.substring(1))
+  const signalMap: any = {}
 
-        rows.push({
-          time,
-          a: signals.a,
-          b: signals.b,
-          y: signals.y,
-        })
+  for (const line of lines) {
+
+    if (line.startsWith("$var")) {
+      const parts = line.split(" ")
+
+      const symbol = parts[3]
+      const signalName = parts[4]
+
+      signalMap[symbol] = signalName
+
+      if (!(signalName in signals)) {
+        signals[signalName] = 0
       }
-
-      if (line === '0"') signals.a = 0
-      if (line === '1"') signals.a = 1
-
-      if (line === "0#") signals.b = 0
-      if (line === "1#") signals.b = 1
-
-      if (line === "0!") signals.y = 0
-      if (line === "1!") signals.y = 1
     }
 
-    return rows
+    if (
+      line.length >= 2 &&
+      (line[0] === "0" || line[0] === "1")
+    ) {
+      const value = Number(line[0])
+      const symbol = line.substring(1)
+
+      const signalName = signalMap[symbol]
+
+      if (signalName) {
+        signals[signalName] = value
+      }
+    }
+
+    if (line.startsWith("#")) {
+      time = parseInt(line.substring(1))
+
+      rows.push({
+        time,
+        ...signals
+      })
+    }
   }
+
+  return rows
+}
 
   const generate = async () => {
     setLoading(true)
@@ -66,6 +81,7 @@ export default function Home() {
       setWaveform(waveformText)
 
       const parsed = parseVCD(waveformText)
+      console.log(parsed)
 
       setParsedWaveform(parsed)
 
@@ -104,6 +120,55 @@ export default function Home() {
         {loading ? "Generating..." : "Generate Verilog"}
       </button>
 
+      {verilog && (
+  <button
+    onClick={() => {
+      const blob = new Blob([verilog], {
+        type: "text/plain"
+      })
+
+      const url = URL.createObjectURL(blob)
+
+      const a = document.createElement("a")
+
+      a.href = url
+      a.download = "generated.v"
+
+      a.click()
+
+      URL.revokeObjectURL(url)
+    }}
+    className="ml-4 px-6 py-2 bg-green-600 text-white rounded-lg"
+  >
+    Download Verilog
+  </button>
+)}
+
+     {waveform && (
+  <button
+    onClick={() => {
+      const blob = new Blob([waveform], {
+        type: "text/plain"
+      })
+
+      const url = URL.createObjectURL(blob)
+
+      const a = document.createElement("a")
+
+      a.href = url
+      a.download = "waveform.vcd"
+
+      a.click()
+
+      URL.revokeObjectURL(url)
+    }}
+    className="ml-4 px-6 py-2 bg-purple-600 text-white rounded-lg"
+  >
+    Download VCD
+  </button>
+)}
+      
+
       {error && (
         <div className="mt-4 text-red-500 text-sm">
           {error}
@@ -136,73 +201,98 @@ export default function Home() {
 
           <table className="border-collapse border mb-8">
             <thead>
-              <tr>
-                <th className="border p-2">Time</th>
-                <th className="border p-2">A</th>
-                <th className="border p-2">B</th>
-                <th className="border p-2">Y</th>
-              </tr>
-            </thead>
+  <tr>
+    <th className="border p-2">Time</th>
 
-            <tbody>
-              {parsedWaveform.map((row, i) => (
-                <tr key={i}>
-                  <td className="border p-2">{row.time}</td>
-                  <td className="border p-2">{row.a}</td>
-                  <td className="border p-2">{row.b}</td>
-                  <td className="border p-2">{row.y}</td>
-                </tr>
-              ))}
-            </tbody>
+    {Object.keys(parsedWaveform[0] || {})
+      .filter((key) => key !== "time")
+      .map((signal) => (
+        <th key={signal} className="border p-2">
+          {signal}
+        </th>
+      ))}
+  </tr>
+</thead>
+
+<tbody>
+  {parsedWaveform.map((row, i) => (
+    <tr key={i}>
+      <td className="border p-2">{row.time}</td>
+
+      {Object.keys(row)
+        .filter((key) => key !== "time")
+        .map((signal) => (
+          <td key={signal} className="border p-2">
+            {row[signal]}
+          </td>
+        ))}
+    </tr>
+  ))}
+</tbody>
           </table>
 
           <h2 className="font-bold mb-3">
             Waveform Preview
           </h2>
 
-          <svg width="700" height="220" className="border">
+          <svg width="900" height="400" className="border">
 
-            <text x="10" y="40">A</text>
+  {Object.keys(parsedWaveform[0] || {})
+    .filter((signal) => signal !== "time")
+    .map((signal, signalIndex) => (
+      <g key={signal}>
 
-            {parsedWaveform.map((row, i) => (
-              <line
-                key={`a-${i}`}
-                x1={60 + i * 120}
-                y1={row.a ? 20 : 60}
-                x2={180 + i * 120}
-                y2={row.a ? 20 : 60}
-                stroke="blue"
-                strokeWidth="3"
-              />
-            ))}
+        <text
+          x="10"
+          y={40 + signalIndex * 80}
+        >
+          {signal}
+        </text>
 
-            <text x="10" y="110">B</text>
+        {parsedWaveform.slice(0, -1).map((row, i) => {
+  const nextRow = parsedWaveform[i + 1]
 
-            {parsedWaveform.map((row, i) => (
-              <line
-                key={`b-${i}`}
-                x1={60 + i * 120}
-                y1={row.b ? 90 : 130}
-                x2={180 + i * 120}
-                y2={row.b ? 90 : 130}
-                stroke="green"
-                strokeWidth="3"
-              />
-            ))}
+  const currentY =
+    row[signal]
+      ? 20 + signalIndex * 80
+      : 60 + signalIndex * 80
 
-            <text x="10" y="180">Y</text>
+  const nextY =
+    nextRow[signal]
+      ? 20 + signalIndex * 80
+      : 60 + signalIndex * 80
 
-            {parsedWaveform.map((row, i) => (
-              <line
-                key={`y-${i}`}
-                x1={60 + i * 120}
-                y1={row.y ? 160 : 200}
-                x2={180 + i * 120}
-                y2={row.y ? 160 : 200}
-                stroke="red"
-                strokeWidth="3"
-              />
-            ))}
+  return (
+    <g key={`${signal}-${i}`}>
+
+      <line
+        x1={60 + i * 120}
+        y1={currentY}
+        x2={180 + i * 120}
+        y2={currentY}
+        stroke="black"
+        strokeWidth="3"
+      />
+
+      {currentY !== nextY && (
+        <line
+          x1={180 + i * 120}
+          y1={currentY}
+          x2={180 + i * 120}
+          y2={nextY}
+          stroke="black"
+          strokeWidth="3"
+        />
+      )}
+
+    </g>
+  )
+})}
+
+      </g>
+    ))}
+
+            
           </svg>
         </div>
       )}
