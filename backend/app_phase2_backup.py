@@ -1,7 +1,6 @@
 import os
 import subprocess
 import tempfile
-from PIL import Image
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -114,44 +113,6 @@ def upload_image():
         "success": True,
         "filename": file.filename
     })
-
-@app.route("/image-to-verilog", methods=["POST"])
-def image_to_verilog():
-
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
-
-    file = request.files["image"]
-
-    image = Image.open(file)
-
-    prompt = """
-    You are a Verilog HDL expert.
-
-    Analyze the uploaded circuit diagram.
-
-    The image may contain:
-    - Logic gates
-    - Digital circuits
-    - Hand-drawn gate diagrams
-
-    Generate synthesizable Verilog code that matches the circuit.
-
-    Return ONLY Verilog code.
-    Do not use markdown.
-    Do not explain anything.
-    """
-
-    response = MODEL.generate_content(
-        [prompt, image]
-    )
-
-    verilog_code = response.text
-
-    return jsonify({
-        "verilog": verilog_code
-    })
-
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
