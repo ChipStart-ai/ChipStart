@@ -20,11 +20,13 @@ MODEL = genai.GenerativeModel("gemini-3.5-flash")
 with open("../prompts/verilog_system_prompt.txt", "r") as f:
     SYSTEM_PROMPT = f.read()
 
+
 @app.route("/")
 def home():
     return {
         "message": "ChipStart Backend Running"
     }
+
 
 @app.route("/generate", methods=["POST"])
 def generate_verilog():
@@ -34,13 +36,16 @@ def generate_verilog():
 
     try:
         print("Calling Gemini...")
+
         response = MODEL.generate_content(
-    f"{SYSTEM_PROMPT}\n\nUser Request:\n{user_input}"
-)
+            [prompt, image]
+        )
 
         verilog_code = response.text
         verilog_code = verilog_code.replace("```verilog", "").replace("```", "").strip()
         print(repr(verilog_code[:100]))
+
+
         print("Gemini responded!")
         print(verilog_code)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -78,16 +83,24 @@ def generate_verilog():
             run_result = subprocess.run(
                 ["vvp", sim_path],
                 capture_output=True,
-                text=True
+                text=True,
+                cwd=tmpdir
             )
 
-            print("VVP OUTPUT:")
-            print(run_result.stdout)
-            print(run_result.stderr)
+
+            vcd_path = os.path.join(tmpdir, "output.vcd")
+
+            waveform_data = ""
+
+            if os.path.exists(vcd_path):
+                with open(vcd_path, "r") as f:
+                    waveform_data = f.read()
+            print("VCD size:", len(waveform_data))
+
 
             return jsonify({
                 "verilog": verilog_code,
-                "waveform": "Simulation completed",
+                "waveform": waveform_data,
                 "error": None
             })
 
@@ -95,6 +108,7 @@ def generate_verilog():
         return jsonify({
             "verilog": None,
             "waveform": None,
+
             "error": str(e)
         })
     
@@ -147,6 +161,7 @@ def image_to_verilog():
     )
 
     verilog_code = response.text
+    verilog_code = verilog_code.replace("```verilog", "").replace("```", "").strip()
 
     return jsonify({
         "verilog": verilog_code
@@ -155,3 +170,5 @@ def image_to_verilog():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
+
+
