@@ -38,7 +38,7 @@ def generate_verilog():
         print("Calling Gemini...")
 
         response = MODEL.generate_content(
-            [prompt, image]
+            f"{SYSTEM_PROMPT}\n\nUser Request:\n{user_input}"
         )
 
         verilog_code = response.text
