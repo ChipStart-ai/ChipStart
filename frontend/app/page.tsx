@@ -11,6 +11,17 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  const [image, setImage] = useState<File | null>(null)
+
+  const signalColors = [
+  "#00FF00", // green
+  "#00FFFF", // cyan
+  "#FFD700", // yellow
+  "#FF69B4", // pink
+  "#FF4500", // orange
+  "#9370DB", // purple
+]
+
   function parseVCD(vcd: string) {
   const rows: any[] = []
 
@@ -93,7 +104,29 @@ export default function Home() {
     }
 
     setLoading(false)
+    }    
+  
+const generateFromImage = async () => {
+  if (!image) {
+    setError("Please select an image")
+    return
   }
+
+  const formData = new FormData()
+  formData.append("image", image)
+
+  try {
+    const res = await axios.post(
+      "http://localhost:5001/image-to-verilog",
+      formData
+    )
+
+    setVerilog(res.data.verilog)
+    setError("")
+  } catch (e) {
+    setError("Image upload failed")
+  }
+}
 
   return (
     <main className="min-h-screen p-8 max-w-5xl mx-auto">
@@ -112,6 +145,15 @@ export default function Home() {
         onChange={(e) => setPrompt(e.target.value)}
       />
 
+      <input
+  type="file"
+  accept="image/*"
+  onChange={(e) =>
+    setImage(e.target.files?.[0] || null)
+  }
+  className="mt-4 block text-white"
+/>
+
       <button
         onClick={generate}
         disabled={loading}
@@ -119,6 +161,13 @@ export default function Home() {
       >
         {loading ? "Generating..." : "Generate Verilog"}
       </button>
+
+<button
+  onClick={generateFromImage}
+  className="ml-4 px-6 py-2 bg-green-600 text-white rounded-lg"
+>
+  Generate From Image
+</button>
 
       {verilog && (
   <button
@@ -176,13 +225,13 @@ export default function Home() {
       )}
 
       {verilog && (
-        <pre className="mt-6 bg-gray-50 p-4 rounded-lg text-xs overflow-auto">
+        <pre className="mt-6 bg-black text-white p-4 rounded-lg text-xs overflow-auto border border-gray-700">
           {verilog}
         </pre>
       )}
 
       {waveform && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-6 p-4 bg-black text-white rounded-lg border border-gray-700">
           <p className="text-sm font-medium mb-2">
             Simulation waveform
           </p>
@@ -194,15 +243,17 @@ export default function Home() {
       )}
 
       {parsedWaveform.length > 0 && (
-        <div className="mt-6 p-4 bg-white border rounded-lg">
+        <div className="mt-6 p-4 bg-black text-white border border-gray-700 rounded-lg">
           <h2 className="font-bold mb-3">
             Parsed Waveform
           </h2>
 
-          <table className="border-collapse border mb-8">
+          <table className="border-collapse border border-gray-700 mb-8 text-white">
             <thead>
   <tr>
-    <th className="border p-2">Time</th>
+    <th className="border border-gray-700 p-2 bg-gray-900">
+      Time
+    </th>
 
     {Object.keys(parsedWaveform[0] || {})
       .filter((key) => key !== "time")
@@ -217,12 +268,14 @@ export default function Home() {
 <tbody>
   {parsedWaveform.map((row, i) => (
     <tr key={i}>
-      <td className="border p-2">{row.time}</td>
+  <td className="border border-gray-700 p-2 bg-black">
+    {row.time}
+  </td>
 
-      {Object.keys(row)
+  {Object.keys(row)
         .filter((key) => key !== "time")
         .map((signal) => (
-          <td key={signal} className="border p-2">
+          <td key={signal} className="border border-gray-700 p-2 bg-black">
             {row[signal]}
           </td>
         ))}
@@ -235,7 +288,19 @@ export default function Home() {
             Waveform Preview
           </h2>
 
-          <svg width="900" height="400" className="border">
+          <svg
+            width="900"
+            height="400"
+            className="border border-gray-700 bg-black"
+          >
+const signalColors = [
+  "#00FF00", // green
+  "#00FFFF", // cyan
+  "#FFD700", // yellow
+  "#FF69B4", // pink
+  "#FF4500", // orange
+  "#9370DB", // purple
+]
 
   {Object.keys(parsedWaveform[0] || {})
     .filter((signal) => signal !== "time")
@@ -245,6 +310,7 @@ export default function Home() {
         <text
           x="10"
           y={40 + signalIndex * 80}
+          fill="white"
         >
           {signal}
         </text>
@@ -270,7 +336,7 @@ export default function Home() {
         y1={currentY}
         x2={180 + i * 120}
         y2={currentY}
-        stroke="black"
+        stroke={signalColors[signalIndex % signalColors.length]}
         strokeWidth="3"
       />
 
@@ -280,7 +346,7 @@ export default function Home() {
           y1={currentY}
           x2={180 + i * 120}
           y2={nextY}
-          stroke="black"
+          stroke={signalColors[signalIndex % signalColors.length]}
           strokeWidth="3"
         />
       )}
